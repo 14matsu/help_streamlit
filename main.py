@@ -231,7 +231,7 @@ def display_store_help_requests(selected_year, selected_month):
  #       )
 async def main():
     st.set_page_config(layout="wide")
-    st.title('ヘルプ管理アプリ')
+    st.title('ヘルプ管理アプリ📝')
 
     with st.sidebar:
         st.header('設定')

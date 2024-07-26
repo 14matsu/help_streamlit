@@ -222,16 +222,16 @@ def display_store_help_requests(selected_year, selected_month):
                 st.write(styled_df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
         # CSVダウンロードボタンを追加
-        csv = store_help_requests.to_csv(index=False).encode('utf-8-sig')
-        st.download_button(
-            label="店舗ヘルプ希望をCSVでダウンロード",
-            data=csv,
-            file_name=f"store_help_requests_{selected_year}_{selected_month}.csv",
-            mime="text/csv",
-        )
+ #       csv = store_help_requests.to_csv(index=False).encode('utf-8-sig')
+ #       st.download_button(
+ #           label="店舗ヘルプ希望をCSVでダウンロード",
+ #           data=csv,
+ #           file_name=f"store_help_requests_{selected_year}_{selected_month}.csv",
+ #           mime="text/csv",
+ #       )
 async def main():
     st.set_page_config(layout="wide")
-    st.title('ヘルプ管理アプリ⏰️')
+    st.title('ヘルプ管理アプリ')
 
     with st.sidebar:
         st.header('設定')
@@ -302,15 +302,15 @@ async def main():
                 mime="application/pdf"
             )
 
-        if st.button('CSVとしてエクスポート'):
-            csv_buffer = io.StringIO()
-            st.session_state.shift_data.to_csv(csv_buffer, index=True)
-            st.download_button(
-                label="CSVをダウンロード",
-                data=csv_buffer.getvalue(),
-                file_name="shift_data.csv",
-                mime="text/csv"
-            )
+        #if st.button('CSVとしてエクスポート'):
+        #    csv_buffer = io.StringIO()
+        #    st.session_state.shift_data.to_csv(csv_buffer, index=True)
+        #    st.download_button(
+        #        label="CSVをダウンロード",
+       #         data=csv_buffer.getvalue(),
+       #         file_name="shift_data.csv",
+       #         mime="text/csv"
+       #     )
 
     display_shift_table(selected_year, selected_month)
     display_store_help_requests(selected_year, selected_month)

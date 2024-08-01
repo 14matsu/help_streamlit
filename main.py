@@ -19,7 +19,10 @@ async def save_shift_async(date, employee, shift_str):
     await asyncio.to_thread(save_shift, date, employee, shift_str)
     
     current_month = date.replace(day=1)
-    load_shift_data(current_month.year, current_month.month)
+    previous_month = current_month - pd.DateOffset(months=1)
+    get_cached_shifts.clear()
+    get_cached_shifts(current_month.year, current_month.month)
+    get_cached_shifts(previous_month.year, previous_month.month)
     
     st.experimental_rerun()
 
@@ -39,17 +42,38 @@ def initialize_shift_data(year, month):
 def display_shift_table(selected_year, selected_month):
     st.header('ヘルプ表')
     
-    if not isinstance(st.session_state.shift_data.index, pd.DatetimeIndex):
-        st.session_state.shift_data.index = pd.to_datetime(st.session_state.shift_data.index)
-    
+    # 選択された月の16日から開始
     start_date = pd.Timestamp(selected_year, selected_month, 16)
+    # 翌月の15日まで
     end_date = start_date + pd.DateOffset(months=1) - pd.Timedelta(days=1)
     
-    display_data = st.session_state.shift_data[
-        (st.session_state.shift_data.index >= start_date) & 
-        (st.session_state.shift_data.index <= end_date)
-    ].copy()   
+    # 日付範囲を作成
+    date_range = pd.date_range(start=start_date, end=end_date)
+    
+    # セッションステートからデータを取得し、必要な日付範囲のみを抽出
+    display_data = st.session_state.shift_data.loc[start_date:end_date].copy()
+    
+    # 存在しない日付があればその行を追加
+    for date in date_range:
+        if date not in display_data.index:
+            display_data.loc[date] = '-'
+    
+    # インデックスをソート
+    display_data = display_data.sort_index()
+    
+    # 日付と曜日のカラムを追加
+    display_data['日付'] = display_data.index.strftime('%Y-%m-%d')
+    display_data['曜日'] = display_data.index.strftime('%a').map(WEEKDAY_JA)
+    
+    # 存在しない従業員列を '-' で埋める
+    for employee in EMPLOYEES:
+        if employee not in display_data.columns:
+            display_data[employee] = '-'
+    
+    display_data = display_data[['日付', '曜日'] + EMPLOYEES]
+    display_data = display_data.fillna('-')
 
+    # 以下、ページネーションのコードは変更なし
     items_per_page = 15
     total_pages = len(display_data) // items_per_page + (1 if len(display_data) % items_per_page > 0 else 0)
     
@@ -61,31 +85,20 @@ def display_shift_table(selected_year, selected_month):
     with col1:
         if st.button('◀◀ 最初', key='first_page'):
             st.session_state.current_page = 1
-            st.experimental_rerun()
         if st.button('◀ 前へ', key='prev_page') and st.session_state.current_page > 1:
             st.session_state.current_page -= 1
-            st.experimental_rerun()
     with col2:
         st.write(f'ページ {st.session_state.current_page} / {total_pages}')
     with col3:
         if st.button('最後 ▶▶', key='last_page'):
             st.session_state.current_page = total_pages
-            st.experimental_rerun()
-
         if st.button('次へ ▶', key='next_page') and st.session_state.current_page < total_pages:
             st.session_state.current_page += 1
-            st.experimental_rerun()
 
     start_idx = (st.session_state.current_page - 1) * items_per_page
     end_idx = start_idx + items_per_page
 
     display_data = display_data.iloc[start_idx:end_idx]
-
-    display_data['日付'] = display_data.index.strftime('%Y-%m-%d')
-    display_data['曜日'] = display_data.index.strftime('%a').map(WEEKDAY_JA)
-    display_data = display_data.reset_index(drop=True)
-    display_data = display_data[['日付', '曜日'] + EMPLOYEES]
-    display_data = display_data.fillna('-')
 
     # CSSでテーブルのスタイルを調整
     st.markdown("""
@@ -106,11 +119,15 @@ def display_shift_table(selected_year, selected_month):
     </style>
     """, unsafe_allow_html=True)
 
+    # インデックスをリセットし、不要な列を削除
+    display_data = display_data.reset_index(drop=True)
+
     # スタイリングを適用
     styled_df = display_data.style.format(format_shifts, subset=EMPLOYEES)\
                                .apply(highlight_weekend, axis=1)
     
-    st.write(styled_df.to_html(escape=False, index=False), unsafe_allow_html=True)
+    # インデックスを表示せずにHTMLを生成
+    st.write(styled_df.hide(axis="index").to_html(escape=False), unsafe_allow_html=True)
 
     # PDFダウンロードボタンを追加
     pdf = generate_help_table_pdf(display_data.reset_index(), selected_year, selected_month)
@@ -120,6 +137,7 @@ def display_shift_table(selected_year, selected_month):
         file_name=f"help_table_{selected_year}_{selected_month}.pdf",
         mime="application/pdf"
     )
+
 
 def update_shift_input(current_shift):
     shift_type, times, stores = parse_shift(current_shift)
@@ -231,13 +249,19 @@ def load_shift_data(year, month):
     start_date = pd.Timestamp(year, month, 16)
     end_date = start_date + pd.DateOffset(months=1) - pd.Timedelta(days=1)
     shifts = get_shifts(start_date, end_date)
-    if shifts.empty:
-        date_range = pd.date_range(start=start_date, end=end_date)
-        shifts = pd.DataFrame(index=date_range, columns=EMPLOYEES, data='-')
-    st.session_state.shift_data = shifts
+    
+    # 日付範囲を作成
+    date_range = pd.date_range(start=start_date, end=end_date)
+    
+    # 全ての日付と従業員の組み合わせを持つDataFrameを作成
+    full_shifts = pd.DataFrame(index=date_range, columns=EMPLOYEES, data='-')
+    
+    # 取得したシフトデータで更新
+    full_shifts.update(shifts)
+    
+    st.session_state.shift_data = full_shifts
     st.session_state.current_year = year
     st.session_state.current_month = month
-
 
 async def main():
     st.set_page_config(layout="wide")
@@ -249,7 +273,7 @@ async def main():
         selected_year = st.selectbox('年を選択', range(current_year , current_year + 10), key='year_selector')
         selected_month = st.selectbox('月を選択', range(1, 13), key='month_selector')
 
-        # ここで load_shift_data を呼び出し
+            # ここで load_shift_data を呼び出し
         load_shift_data(selected_year, selected_month)
 
         initialize_shift_data(selected_year, selected_month)

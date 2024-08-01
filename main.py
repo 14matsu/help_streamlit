@@ -19,10 +19,7 @@ async def save_shift_async(date, employee, shift_str):
     await asyncio.to_thread(save_shift, date, employee, shift_str)
     
     current_month = date.replace(day=1)
-    previous_month = current_month - pd.DateOffset(months=1)
-    get_cached_shifts.clear()
-    get_cached_shifts(current_month.year, current_month.month)
-    get_cached_shifts(previous_month.year, previous_month.month)
+    load_shift_data(current_month.year, current_month.month)
     
     st.experimental_rerun()
 
@@ -229,6 +226,19 @@ def display_store_help_requests(selected_year, selected_month):
  #           file_name=f"store_help_requests_{selected_year}_{selected_month}.csv",
  #           mime="text/csv",
  #       )
+
+def load_shift_data(year, month):
+    start_date = pd.Timestamp(year, month, 16)
+    end_date = start_date + pd.DateOffset(months=1) - pd.Timedelta(days=1)
+    shifts = get_shifts(start_date, end_date)
+    if shifts.empty:
+        date_range = pd.date_range(start=start_date, end=end_date)
+        shifts = pd.DataFrame(index=date_range, columns=EMPLOYEES, data='-')
+    st.session_state.shift_data = shifts
+    st.session_state.current_year = year
+    st.session_state.current_month = month
+
+
 async def main():
     st.set_page_config(layout="wide")
     st.title('ヘルプ管理アプリ📝')
@@ -238,6 +248,9 @@ async def main():
         current_year = datetime.now().year
         selected_year = st.selectbox('年を選択', range(current_year , current_year + 10), key='year_selector')
         selected_month = st.selectbox('月を選択', range(1, 13), key='month_selector')
+
+        # ここで load_shift_data を呼び出し
+        load_shift_data(selected_year, selected_month)
 
         initialize_shift_data(selected_year, selected_month)
 

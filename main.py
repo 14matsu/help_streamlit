@@ -130,14 +130,14 @@ def display_shift_table(selected_year, selected_month):
     st.write(styled_df.hide(axis="index").to_html(escape=False), unsafe_allow_html=True)
 
     # PDFダウンロードボタンを追加
-    pdf = generate_help_table_pdf(display_data.reset_index(), selected_year, selected_month)
-    st.download_button(
-        label="ヘルプ表をPDFでダウンロード",
-        data=pdf,
-        file_name=f"help_table_{selected_year}_{selected_month}.pdf",
-        mime="application/pdf"
-    )
-
+    if st.button("ヘルプ表をPDFでダウンロード"):
+        pdf = generate_help_table_pdf(display_data, selected_year, selected_month)
+        st.download_button(
+            label="ヘルプ表PDFをダウンロード",
+            data=pdf,
+            file_name=f"help_table_{selected_year}_{selected_month}.pdf",
+            mime="application/pdf"
+        )
 
 def update_shift_input(current_shift):
     shift_type, times, stores = parse_shift(current_shift)

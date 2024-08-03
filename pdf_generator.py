@@ -21,16 +21,15 @@ def hex_to_rgb(hex_color):
 def format_shift_for_pdf(shift):
     if pd.isna(shift) or shift == '-':
         return '-'
-    parts = str(shift).split(',')
-    formatted = [f'<font name="NotoSansJP-Bold">{parts[0]}</font>']  # シフトタイプ（AM可、PM可、1日可など）
-    for part in parts[1:]:
+    shift_parts = shift.split(',')
+    formatted_parts = []
+    for part in shift_parts:
         if '@' in part:
             time, store = part.split('@')
-            color = STORE_COLORS.get(store, '#000000')
-            formatted.append(f'<font color="{color}">{time}@{store}</font>')
+            formatted_parts.append(f"{time}@{store}")
         else:
-            formatted.append(part)
-    return '<br/>'.join(formatted)
+            formatted_parts.append(part)
+    return '\n'.join(formatted_parts)
 
 def format_shift_for_individual_pdf(shift_type, times, stores):
     if shift_type in ['-', 'AM', 'PM', '1日', '休み']:
@@ -103,65 +102,71 @@ def generate_pdf(data, employee, year, month):
     doc.build(elements)
     return buffer
 
+
+
 def generate_help_table_pdf(data, year, month):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
     elements = []
 
-    # フォントの登録
-    pdfmetrics.registerFont(TTFont('NotoSansJP', 'NotoSansJP-VariableFont_wght.ttf'))
-
-    # タイトルの追加
+    # スタイルの設定
     styles = getSampleStyleSheet()
-    title_style = styles['Title']
-    title_style.fontName = 'NotoSansJP'
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='NotoSansJP', fontSize=16)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=8)
+
+    # タイトル
     title = Paragraph(f"{year}年{month}月 ヘルプ表", title_style)
     elements.append(title)
+    elements.append(Spacer(1, 12))
 
     # データの準備
-    data['日付'] = pd.to_datetime(data['日付']).dt.strftime('%m/%d')
-    data_list = [data.columns.tolist()] + data.values.tolist()
+    table_data = [['日付', '曜日'] + EMPLOYEES]
+    for _, row in data.iterrows():
+        date = row['日付']
+        weekday = row['曜日']
+        employee_shifts = [format_shift_for_pdf(row[emp]) for emp in EMPLOYEES]
+        table_data.append([date, weekday] + employee_shifts)
 
     # テーブルの作成
-    table = Table(data_list, repeatRows=1)
-
-    # テーブルのスタイル
-    style = TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.grey),
-        ('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),
-        ('ALIGN',(0,0),(-1,-1),'CENTER'),
-        ('FONTNAME', (0,0), (-1,-1), 'NotoSansJP'),
-        ('FONTSIZE', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,0), 12),
-        ('GRID', (0,0), (-1,-1), 1, colors.black)
+    table = Table(table_data, repeatRows=1)
+    table_style = TableStyle([
+        ('FONT', (0, 0), (-1, -1), 'NotoSansJP', 8),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('WORDWRAP', (0, 0), (-1, -1), True),
     ])
 
-    # 土曜日と日曜日の背景色を変更
-    for i, row in enumerate(data_list[1:], start=1):
+    # 土曜日と日曜日の背景色を設定
+    for i, row in enumerate(table_data[1:], start=1):
         if row[1] == '土':
-            style.add('BACKGROUND', (0, i), (-1, i), HexColor(SATURDAY_BG_COLOR))
+            table_style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SATURDAY_BG_COLOR))
         elif row[1] == '日':
-            style.add('BACKGROUND', (0, i), (-1, i), HexColor(SUNDAY_BG_COLOR))
+            table_style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR))
 
-    # シフトの色分け
-    for i, row in enumerate(data_list[1:], start=1):
+    # 店舗の色を設定
+    for i, row in enumerate(table_data[1:], start=1):
         for j, cell in enumerate(row[2:], start=2):
-            if '@' in str(cell):
-                parts = str(cell).split(',')
-                for part in parts:
-                    if '@' in part:
-                        store = part.split('@')[1]
-                        if store in STORE_COLORS:
-                            color = HexColor(STORE_COLORS[store])
-                            style.add('TEXTCOLOR', (j, i), (j, i), color)
+            shifts = cell.split('\n')
+            for k, shift in enumerate(shifts):
+                if '@' in shift:
+                    _, store = shift.split('@')
+                    if store in STORE_COLORS:
+                        color = HexColor(STORE_COLORS[store])
+                        table_style.add('TEXTCOLOR', (j, i), (j, i), color)
+                        break  # 最初に見つかった店舗の色を使用
 
-    table.setStyle(style)
+    table.setStyle(table_style)
     elements.append(table)
 
     # PDFの生成
     doc.build(elements)
+
     buffer.seek(0)
     return buffer
+
 
 def generate_individual_pdf(data, employee, year, month):
     buffer = BytesIO()

@@ -50,3 +50,4 @@ WEEKDAY_JA = {'Mon': '月', 'Tue': '火', 'Wed': '水', 'Thu': '木', 'Fri': '�
 FILLED_HELP_BG_COLOR = 'background-color: #D9D9D9'
 SATURDAY_BG_COLOR = '#E6F2FF'  # 薄い青色
 SUNDAY_BG_COLOR = '#FFE6E6'    # 薄い赤色
+HOLIDAY_BG_COLOR = '#FFE6E6'  # 休み用の背景色

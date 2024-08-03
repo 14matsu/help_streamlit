@@ -1,7 +1,6 @@
 import pandas as pd
 import streamlit as st
-from constants import  AREAS, SHIFT_TYPES, STORE_COLORS,FILLED_HELP_BG_COLOR
-
+from constants import  AREAS, SHIFT_TYPES, STORE_COLORS,FILLED_HELP_BG_COLOR,HOLIDAY_BG_COLOR
 
 def parse_shift(shift_str):
     if pd.isna(shift_str) or shift_str == '-' or isinstance(shift_str, (int, float)) or shift_str == '休み':
@@ -24,8 +23,10 @@ def parse_shift(shift_str):
 
 
 def format_shifts(val):
-    if pd.isna(val) or val == '-' or isinstance(val, (int, float)) or val == '休み':
-        return val
+    if pd.isna(val) or val == '-' or isinstance(val, (int, float)):
+        return '-'
+    if val == '休み':
+        return f'<div style="background-color: {HOLIDAY_BG_COLOR};">休み</div>'
     try:
         parts = str(val).split(',')
         shift_type = parts[0]

@@ -4,11 +4,11 @@ from constants import  AREAS, SHIFT_TYPES, STORE_COLORS,FILLED_HELP_BG_COLOR
 
 
 def parse_shift(shift_str):
-    if pd.isna(shift_str) or shift_str == '-' or isinstance(shift_str, (int, float)):
-        return '-', [], []
+    if pd.isna(shift_str) or shift_str == '-' or isinstance(shift_str, (int, float)) or shift_str == '休み':
+        return shift_str, [], []
     try:
         parts = str(shift_str).split(',')
-        shift_type = parts[0] if parts[0] in ['AM可', 'PM可', '1日可'] else ''
+        shift_type = parts[0] if parts[0] in ['AM可', 'PM可', '1日可', '休み'] else ''
         times_stores = []
         for part in parts[1:]:
             if '@' in part:
@@ -24,8 +24,8 @@ def parse_shift(shift_str):
 
 
 def format_shifts(val):
-    if pd.isna(val) or val == '-' or isinstance(val, (int, float)):
-        return '-'
+    if pd.isna(val) or val == '-' or isinstance(val, (int, float)) or val == '休み':
+        return val
     try:
         parts = str(val).split(',')
         shift_type = parts[0]

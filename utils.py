@@ -3,11 +3,11 @@ import streamlit as st
 from constants import  AREAS, SHIFT_TYPES, STORE_COLORS,FILLED_HELP_BG_COLOR,HOLIDAY_BG_COLOR
 
 def parse_shift(shift_str):
-    if pd.isna(shift_str) or shift_str == '-' or isinstance(shift_str, (int, float)) or shift_str == '休み':
+    if pd.isna(shift_str) or shift_str in ['-', '休み', '鹿屋'] or isinstance(shift_str, (int, float)):
         return shift_str, [], []
     try:
         parts = str(shift_str).split(',')
-        shift_type = parts[0] if parts[0] in ['AM可', 'PM可', '1日可', '休み'] else ''
+        shift_type = parts[0] if parts[0] in ['AM可', 'PM可', '1日可', '休み', '鹿屋'] else ''
         times_stores = []
         for part in parts[1:]:
             if '@' in part:
@@ -24,9 +24,9 @@ def parse_shift(shift_str):
 
 def format_shifts(val):
     if pd.isna(val) or val == '-' or isinstance(val, (int, float)):
-        return '-'
-    if val == '休み':
-        return f'<div style="background-color: {HOLIDAY_BG_COLOR};">休み</div>'
+        return val
+    if val in ['休み', '鹿屋']:
+        return f'<div style="background-color: {HOLIDAY_BG_COLOR};">{val}</div>'
     try:
         parts = str(val).split(',')
         shift_type = parts[0]

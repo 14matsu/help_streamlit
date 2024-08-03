@@ -9,7 +9,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import Color
-from constants import STORE_COLORS, WEEKDAY_JA, SATURDAY_BG_COLOR, SUNDAY_BG_COLOR,EMPLOYEES
+from constants import STORE_COLORS, WEEKDAY_JA, SATURDAY_BG_COLOR, SUNDAY_BG_COLOR,EMPLOYEES,HOLIDAY_BG_COLOR
 from io import BytesIO
 from utils import parse_shift  # parse_shift関数をutils.pyからインポート
 from datetime import datetime
@@ -18,18 +18,7 @@ def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (0, 2, 4))
 
-def format_shift_for_pdf(shift):
-    if pd.isna(shift) or shift == '-':
-        return '-'
-    shift_parts = shift.split(',')
-    formatted_parts = []
-    for part in shift_parts:
-        if '@' in part:
-            time, store = part.split('@')
-            formatted_parts.append(f"{time}@{store}")
-        else:
-            formatted_parts.append(part)
-    return '\n'.join(formatted_parts)
+
 
 def format_shift_for_individual_pdf(shift_type, times, stores):
     if shift_type in ['-', 'AM', 'PM', '1日', '休み']:
@@ -49,6 +38,22 @@ def generate_pdf(data, employee, year, month):
     title_style.fontName = 'NotoSansJP'
     title_style.fontSize = 14
     
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=8, alignment=1)
+
+    def format_shift_for_pdf(shift_type, times, stores):
+        if shift_type in ['-', 'AM', 'PM', '1日', '休み', '鹿屋']:
+            if shift_type in ['休み', '鹿屋']:
+                return Paragraph(shift_type, ParagraphStyle('Holiday', parent=normal_style, backColor=colors.HexColor(HOLIDAY_BG_COLOR), alignment=1))
+            return shift_type
+        
+        formatted_parts = []
+        for time, store in zip(times, stores):
+            color = STORE_COLORS.get(store, "#000000")
+            formatted_parts.append(f'<font color="{color}">{time}@{store}</font>')
+        
+        content = f"{shift_type}<br/>{', '.join(formatted_parts)}" if formatted_parts else shift_type
+        return Paragraph(content, ParagraphStyle('Shift', parent=normal_style, alignment=1))
+
     start_date = pd.Timestamp(year, month, 16)
     end_date = start_date + pd.DateOffset(months=1) - pd.Timedelta(days=1)
     title = f"{employee} {start_date.strftime('%Y年%m月%d日')}～{end_date.strftime('%Y年%m月%d日')} シフト表"
@@ -65,7 +70,7 @@ def generate_pdf(data, employee, year, month):
     for date, shift in filtered_data.items():
         weekday = WEEKDAY_JA[date.strftime('%a')]
         shift_type, times, stores = parse_shift(shift)
-        formatted_shifts = format_shift_for_pdf(shift_type, times, stores)
+        formatted_shifts = [format_shift_for_pdf(shift_type, times, stores)]
         row = [date.strftime('%m/%d'), weekday] + formatted_shifts + [''] * (max_shifts - len(formatted_shifts))
         table_data.append(row)
 
@@ -86,22 +91,16 @@ def generate_pdf(data, employee, year, month):
     ]
     
     for i, row in enumerate(table_data[1:], start=1):
-        for j, cell in enumerate(row[2:], start=2):
-            if cell in ['AM', 'PM', '1日', '-', '休み']:
-                base_style.append(('TEXTCOLOR', (j, i), (j, i), colors.black))
-            elif '@' in cell:
-                time, store = cell.split('@')
-                if store in STORE_COLORS:
-                    color = STORE_COLORS[store]
-                    rgb_color = hex_to_rgb(color)
-                    base_style.append(('TEXTCOLOR', (j, i), (j, i), Color(*rgb_color, alpha=1)))
+        if '土' in row[1]:
+            base_style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(SATURDAY_BG_COLOR)))
+        elif '日' in row[1]:
+            base_style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR)))
 
     t.setStyle(TableStyle(base_style))
 
     elements.append(t)
     doc.build(elements)
     return buffer
-
 
 
 def generate_help_table_pdf(data, year, month):
@@ -112,12 +111,40 @@ def generate_help_table_pdf(data, year, month):
     # スタイルの設定
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='NotoSansJP', fontSize=16)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=8)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=8, alignment=1)  # alignment=1 は中央揃え
 
     # タイトル
     title = Paragraph(f"{year}年{month}月 ヘルプ表", title_style)
     elements.append(title)
     elements.append(Spacer(1, 12))
+
+    def format_shift_for_pdf(shift):
+        if pd.isna(shift) or shift == '-':
+            return '-'
+        if shift in ['休み', '鹿屋']:
+            return Paragraph(shift, ParagraphStyle('Holiday', parent=normal_style, backColor=colors.HexColor(HOLIDAY_BG_COLOR)))
+        
+        shift_parts = shift.split(',')
+        shift_type = shift_parts[0]
+        formatted_parts = []
+        
+        for part in shift_parts[1:]:
+            if '@' in part:
+                time, store = part.split('@')
+                color = STORE_COLORS.get(store, "#000000")
+                formatted_parts.append(f'<font color="{color}">{time}@{store}</font>')
+            else:
+                formatted_parts.append(part)
+        
+        if shift_type in ['AM可', 'PM可', '1日可']:
+            if formatted_parts:
+                content = f"{shift_type}<br/>{', '.join(formatted_parts)}"
+            else:
+                content = shift_type
+        else:
+            content = ', '.join(formatted_parts)
+        
+        return Paragraph(content, normal_style)
 
     # データの準備
     table_data = [['日付', '曜日'] + EMPLOYEES]
@@ -136,7 +163,8 @@ def generate_help_table_pdf(data, year, month):
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('WORDWRAP', (0, 0), (-1, -1), True),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
     ])
 
     # 土曜日と日曜日の背景色を設定
@@ -146,18 +174,6 @@ def generate_help_table_pdf(data, year, month):
         elif row[1] == '日':
             table_style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR))
 
-    # 店舗の色を設定
-    for i, row in enumerate(table_data[1:], start=1):
-        for j, cell in enumerate(row[2:], start=2):
-            shifts = cell.split('\n')
-            for k, shift in enumerate(shifts):
-                if '@' in shift:
-                    _, store = shift.split('@')
-                    if store in STORE_COLORS:
-                        color = HexColor(STORE_COLORS[store])
-                        table_style.add('TEXTCOLOR', (j, i), (j, i), color)
-                        break  # 最初に見つかった店舗の色を使用
-
     table.setStyle(table_style)
     elements.append(table)
 
@@ -166,7 +182,6 @@ def generate_help_table_pdf(data, year, month):
 
     buffer.seek(0)
     return buffer
-
 
 def generate_individual_pdf(data, employee, year, month):
     buffer = BytesIO()
@@ -179,7 +194,9 @@ def generate_individual_pdf(data, employee, year, month):
     styles = getSampleStyleSheet()
     title_style = styles['Title']
     title_style.fontName = 'NotoSansJP-Bold'
-    title = Paragraph(f"{employee}さん {year}年{month}月 シフト表", title_style)  # ここを修正
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=8, alignment=1)
+
+    title = Paragraph(f"{employee}さん {year}年{month}月 シフト表", title_style)
     elements.append(title)
     elements.append(Spacer(1, 10))
 
@@ -192,6 +209,12 @@ def generate_individual_pdf(data, employee, year, month):
     col_widths = [20*mm, 15*mm] + [30*mm] * max_shifts
     
     table_data = [['日付', '曜日'] + [f'シフト{i+1}' for i in range(max_shifts)]]
+    
+    def format_shift_for_individual_pdf(shift_type, times, stores):
+        if shift_type in ['-', 'AM', 'PM', '1日', '休み', '鹿屋']:
+            return [shift_type]
+        return [f'{time}@{store}' for time, store in zip(times, stores) if time and store]
+
     for date, shift in filtered_data.items():
         weekday = WEEKDAY_JA[date.strftime('%a')]
         shift_parts = str(shift).split(',') if pd.notna(shift) else ['-']
@@ -210,7 +233,7 @@ def generate_individual_pdf(data, employee, year, month):
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, -1), 'NotoSansJP'),
-        ('FONTNAME', (0, 0), (-1, 0), 'NotoSansJP-Bold'),  # カラム名を太字に
+        ('FONTNAME', (0, 0), (-1, 0), 'NotoSansJP-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 10),
         ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
@@ -224,12 +247,13 @@ def generate_individual_pdf(data, employee, year, month):
             style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR))
 
         for j, cell in enumerate(row[2:], start=2):
-            if '@' in cell:
+            if cell in ['休み', '鹿屋']:
+                style.add('BACKGROUND', (j, i), (j, i), colors.HexColor(HOLIDAY_BG_COLOR))
+            elif '@' in cell:
                 time, store = cell.split('@')
                 if store in STORE_COLORS:
                     color = colors.HexColor(STORE_COLORS[store])
                     style.add('TEXTCOLOR', (j, i), (j, i), color)
-                    
 
     t.setStyle(style)
     elements.append(t)

@@ -141,7 +141,7 @@ def display_shift_table(selected_year, selected_month):
 
 def update_shift_input(current_shift):
     shift_type, times, stores = parse_shift(current_shift)
-    new_shift_type = st.selectbox('種類', ['AM可', 'PM可', '1日可', '-', '休み'], index=['AM可', 'PM可', '1日可', '-', '休み'].index(shift_type) if shift_type in ['AM可', 'PM可', '1日可', '休み'] else 3)
+    new_shift_type = st.selectbox('種類', ['AM可', 'PM可', '1日可', '-', '休み', '鹿屋'], index=['AM可', 'PM可', '1日可', '-', '休み', '鹿屋'].index(shift_type) if shift_type in ['AM可', 'PM可', '1日可', '休み', '鹿屋'] else 3)
     
     if new_shift_type in ['AM可', 'PM可', '1日可']:
         num_shifts = st.number_input('シフト数', min_value=1, max_value=5, value=len(times) or 1)
@@ -169,6 +169,9 @@ def update_shift_input(current_shift):
 
     elif new_shift_type == '休み':
         new_shift_str = '休み'
+
+    elif new_shift_type == '鹿屋':
+        new_shift_str = '鹿屋'
 
     elif new_shift_type == '-':
         new_shift_str = '-'

@@ -5,7 +5,7 @@ import io
 import base64
 import asyncio
 from database import init_db, get_shifts, save_shift, save_store_help_request, get_store_help_requests
-from pdf_generator import generate_pdf,generate_help_table_pdf,generate_individual_pdf
+from pdf_generator import generate_pdf,generate_help_table_pdf,generate_individual_pdf,generate_store_pdf
 from constants import EMPLOYEES, SHIFT_TYPES, STORE_COLORS, WEEKDAY_JA,AREAS
 from utils import parse_shift, format_shifts, update_session_state_shifts, highlight_weekend, get_store_index, get_shift_type_index, is_shift_filled, highlight_filled_shifts
 
@@ -342,6 +342,23 @@ async def main():
                 mime="application/pdf"
             )
 
+        st.header('店舗別PDFのダウンロード')
+        selected_area = st.selectbox('エリアを選択', [key for key in AREAS.keys() if key != 'なし'], key='pdf_area_selector')
+        selected_store = st.selectbox('店舗を選択', AREAS[selected_area], key='pdf_store_selector')
+        if st.button('店舗PDFを生成'):
+            start_date = pd.Timestamp(selected_year, selected_month, 16)
+            end_date = start_date + pd.DateOffset(months=1) - pd.Timedelta(days=1)
+            store_data = st.session_state.shift_data.copy()
+            store_help_requests = get_store_help_requests(start_date, end_date)
+            store_data[selected_store] = store_help_requests[selected_store]
+            pdf_buffer = generate_store_pdf(store_data, selected_store, selected_year, selected_month)
+            file_name = f'{selected_month}月_{selected_store}.pdf'
+            st.download_button(
+                label=f"{selected_store}のPDFをダウンロード",
+                data=pdf_buffer.getvalue(),
+                file_name=file_name,
+                mime="application/pdf"
+            )
         #if st.button('CSVとしてエクスポート'):
         #    csv_buffer = io.StringIO()
         #    st.session_state.shift_data.to_csv(csv_buffer, index=True)

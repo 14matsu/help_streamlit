@@ -4,14 +4,15 @@ from reportlab.lib import colors
 from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import landscape, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import Color
-from constants import STORE_COLORS, WEEKDAY_JA, SATURDAY_BG_COLOR, SUNDAY_BG_COLOR
+from constants import STORE_COLORS, WEEKDAY_JA, SATURDAY_BG_COLOR, SUNDAY_BG_COLOR,EMPLOYEES
 from io import BytesIO
 from utils import parse_shift  # parse_shift関数をutils.pyからインポート
+from datetime import datetime
 
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
@@ -228,5 +229,94 @@ def generate_individual_pdf(data, employee, year, month):
     t.setStyle(style)
     elements.append(t)
     doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+def time_to_minutes(time_str):
+    if '-' in time_str:
+        start_time = time_str.split('-')[0]
+    else:
+        start_time = time_str
+    if '半' in start_time:
+        start_time = start_time.replace('半', ':30')
+    else:
+        start_time += ':00'
+    time_obj = datetime.strptime(start_time, '%H:%M')
+    return time_obj.hour * 60 + time_obj.minute
+
+
+def generate_store_pdf(store_data, store_name, year, month):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
+    elements = []
+
+    # スタイルの設定
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='NotoSansJP', fontSize=16)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=10)
+
+    # タイトル
+    title = Paragraph(f"{year}年{month}月 {store_name}", title_style)
+    elements.append(title)
+    elements.append(Spacer(1, 12))
+
+    # 注意書き
+    note = Paragraph("*大田さんは1人のときは18時まで\nそれ以外は17時まで", normal_style)
+    elements.append(note)
+    elements.append(Spacer(1, 12))
+
+ # テーブルデータの準備
+    data = [['日にち', '時間', 'ヘルプ担当', '備考']]
+    row_colors = [('BACKGROUND', (0, 0), (-1, 0), colors.grey)]  # ヘッダー行の背景色
+
+    for i, (date, row) in enumerate(store_data.iterrows(), start=1):
+        day_of_week = WEEKDAY_JA.get(date.strftime('%a'), date.strftime('%a'))
+        date_str = f"{date.strftime('%m月%d日')} {day_of_week}"
+        help_request = row.get(store_name, '-')
+        shifts = []
+        for emp in EMPLOYEES:
+            shift = row.get(emp, '-')
+            if shift != '-':
+                _, shift_times, stores = parse_shift(shift)
+                for time, store in zip(shift_times, stores):
+                    if store == store_name:
+                        shifts.append((time_to_minutes(time), time, emp))
+        
+        # 時間でソート
+        shifts.sort(key=lambda x: x[0])
+        
+        if shifts:
+            time_str = '\n'.join([shift[1] for shift in shifts])
+            helper_str = '\n'.join([shift[2] for shift in shifts])
+        else:
+            time_str = '-'
+            helper_str = '-'
+        
+        data.append([date_str, time_str, helper_str, ''])
+
+        # 土曜日と日曜日の背景色を設定
+        if day_of_week == '土':
+            row_colors.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(SATURDAY_BG_COLOR)))
+        elif day_of_week == '日':
+            row_colors.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR)))
+
+    # テーブルの作成
+    table = Table(data, colWidths=[80, 80, 80, 80])
+    table.setStyle(TableStyle([
+        ('FONT', (0, 0), (-1, -1), 'NotoSansJP', 10),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('WORDWRAP', (0, 0), (-1, -1), True),
+    ] + row_colors))  # row_colors を追加
+
+    elements.append(table)
+
+    # PDFの生成
+    doc.build(elements)
+
     buffer.seek(0)
     return buffer

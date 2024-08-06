@@ -104,14 +104,28 @@ def generate_pdf(data, employee, year, month):
 
 
 def generate_help_table_pdf(data, year, month):
+    # フォントの登録
+    pdfmetrics.registerFont(TTFont('NotoSansJP', 'NotoSansJP-VariableFont_wght.ttf'))
+    pdfmetrics.registerFont(TTFont('NotoSansJP-Bold', 'NotoSansJP-Bold.ttf'))
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
     elements = []
 
     # スタイルの設定
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='NotoSansJP', fontSize=16)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=8, alignment=1)  # alignment=1 は中央揃え
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='NotoSansJP-Bold', fontSize=16)
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=9, alignment=1)
+    bold_style = ParagraphStyle('Bold', parent=normal_style, fontName='NotoSansJP-Bold')
+
+    # テーブルスタイルのフォントサイズも調整
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('FONT', (0, 0), (-1, -1), 'NotoSansJP', 9),
+        ('FONT', (0, 0), (-1, 0), 'NotoSansJP-Bold', 9),  # ヘッダー行を太字に
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        # 他のスタイル設定は変更なし
+    ])
 
     # タイトル
     title = Paragraph(f"{year}年{month}月 ヘルプ表", title_style)
@@ -132,7 +146,7 @@ def generate_help_table_pdf(data, year, month):
             if '@' in part:
                 time, store = part.split('@')
                 color = STORE_COLORS.get(store, "#000000")
-                formatted_parts.append(f'<font color="{color}">{time}@{store}</font>')
+                formatted_parts.append(f'<font color="{color}">{time}@<b>{store}</b></font>')
             else:
                 formatted_parts.append(part)
         
@@ -147,7 +161,7 @@ def generate_help_table_pdf(data, year, month):
         return Paragraph(content, normal_style)
 
     # データの準備
-    table_data = [['日付', '曜日'] + EMPLOYEES]
+    table_data = [['日付', '曜日'] + [Paragraph(f'<b>{emp}</b>', bold_style) for emp in EMPLOYEES]]
     for _, row in data.iterrows():
         date = row['日付']
         weekday = row['曜日']
@@ -158,6 +172,7 @@ def generate_help_table_pdf(data, year, month):
     table = Table(table_data, repeatRows=1)
     table_style = TableStyle([
         ('FONT', (0, 0), (-1, -1), 'NotoSansJP', 8),
+        ('FONT', (0, 0), (-1, 0), 'NotoSansJP-Bold', 8),  # ヘッダー行を太字に
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),

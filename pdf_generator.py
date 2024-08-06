@@ -116,15 +116,21 @@ def generate_help_table_pdf(data, year, month):
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='NotoSansJP-Bold', fontSize=16)
     normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=9, alignment=1)
-    bold_style = ParagraphStyle('Bold', parent=normal_style, fontName='NotoSansJP-Bold')
+    bold_style = ParagraphStyle('Bold', parent=normal_style, fontName='NotoSansJP-Bold', textColor=colors.white)  # テキスト色を白に変更
+
 
     # テーブルスタイルのフォントサイズも調整
     table_style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('FONT', (0, 0), (-1, -1), 'NotoSansJP', 9),
         ('FONT', (0, 0), (-1, 0), 'NotoSansJP-Bold', 9),  # ヘッダー行を太字に
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         # 他のスタイル設定は変更なし
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
     ])
 
     # タイトル
@@ -146,7 +152,7 @@ def generate_help_table_pdf(data, year, month):
             if '@' in part:
                 time, store = part.split('@')
                 color = STORE_COLORS.get(store, "#000000")
-                formatted_parts.append(f'<font color="{color}">{time}@<b>{store}</b></font>')
+                formatted_parts.append(f'<font color="{color}">{time}@<b>{store}</b></font>')  # 店舗名を太字に
             else:
                 formatted_parts.append(part)
         
@@ -161,7 +167,8 @@ def generate_help_table_pdf(data, year, month):
         return Paragraph(content, normal_style)
 
     # データの準備
-    table_data = [['日付', '曜日'] + [Paragraph(f'<b>{emp}</b>', bold_style) for emp in EMPLOYEES]]
+    table_data = [['日付', '曜日'] + [Paragraph(f'<font color="white">{emp}</font>', bold_style) for emp in EMPLOYEES]]  # スタッフ名を白色に
+
     for _, row in data.iterrows():
         date = row['日付']
         weekday = row['曜日']

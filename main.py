@@ -135,7 +135,7 @@ def display_shift_table(selected_year, selected_month):
         st.download_button(
             label="ヘルプ表PDFをダウンロード",
             data=pdf,
-            file_name=f"help_table_{selected_year}_{selected_month}.pdf",
+            file_name=f"全ヘルプスタッフ_{selected_year}_{selected_month}.pdf",
             mime="application/pdf"
         )
 

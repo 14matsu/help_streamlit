@@ -98,7 +98,7 @@ def display_shift_table(selected_year, selected_month):
     start_idx = (st.session_state.current_page - 1) * items_per_page
     end_idx = start_idx + items_per_page
 
-    display_data = display_data.iloc[start_idx:end_idx]
+    page_display_data = display_data.iloc[start_idx:end_idx]
 
     # CSSでテーブルのスタイルを調整
     st.markdown("""
@@ -120,10 +120,10 @@ def display_shift_table(selected_year, selected_month):
     """, unsafe_allow_html=True)
 
     # インデックスをリセットし、不要な列を削除
-    display_data = display_data.reset_index(drop=True)
+    page_display_data = page_display_data.reset_index(drop=True)
 
     # スタイリングを適用
-    styled_df = display_data.style.format(format_shifts, subset=EMPLOYEES)\
+    styled_df = page_display_data.style.format(format_shifts, subset=EMPLOYEES)\
                                .apply(highlight_weekend, axis=1)
     
     # インデックスを表示せずにHTMLを生成

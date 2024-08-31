@@ -386,3 +386,4 @@ def generate_store_pdf(store_data, store_name, year, month):
 
     buffer.seek(0)
     return buffer
+# streamlit run main.py

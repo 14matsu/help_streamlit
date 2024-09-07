@@ -2,6 +2,7 @@ import pandas as pd
 import streamlit as st
 from constants import  AREAS, SHIFT_TYPES, STORE_COLORS,FILLED_HELP_BG_COLOR,HOLIDAY_BG_COLOR
 
+#シフト文字列を解析し、シフトタイプ、時間、店舗に分割
 def parse_shift(shift_str):
     if pd.isna(shift_str) or shift_str in ['-', '休み', '鹿屋'] or isinstance(shift_str, (int, float)):
         return shift_str, [], []
@@ -21,7 +22,7 @@ def parse_shift(shift_str):
         return '-', [], []
     
 
-
+#シフトデータを表示用にフォーマット
 def format_shifts(val):
     if pd.isna(val) or val == '-' or isinstance(val, (int, float)):
         return val
@@ -51,7 +52,7 @@ def format_shifts(val):
         print(f"Error formatting shift: {val}. Error: {e}")
         return str(val)
     
-
+#セッション状態のシフトデータを更新
 def update_session_state_shifts(shifts):
     for date, row in shifts.iterrows():
         if date in st.session_state.shift_data.index:
@@ -61,6 +62,7 @@ def update_session_state_shifts(shifts):
                 else:
                     st.session_state.shift_data.loc[date, employee] = '-'
 
+#土曜日と日曜日の行に背景色を適用
 def highlight_weekend(row):
     weekday = row['曜日']
     if weekday == '土':
@@ -76,12 +78,16 @@ def get_store_index(store):
 def get_shift_type_index(shift_type):
     return SHIFT_TYPES.index(shift_type) if shift_type in SHIFT_TYPES else 0
 
+
+#シフトが埋まっているかどうかをチェック
 def is_shift_filled(shift):
     if pd.isna(shift) or shift == '-':
         return False, []
     shift_type, times, stores = parse_shift(shift)
     return bool(times and stores), stores
 
+
+#埋まっているシフトをハイライト
 def highlight_filled_shifts(row, shift_data):
     styles = [''] * len(row)
     date = pd.to_datetime(row['日付'])

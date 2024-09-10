@@ -14,6 +14,7 @@ from io import BytesIO
 from utils import parse_shift  # parse_shift関数をutils.pyからインポート
 from datetime import datetime
 from reportlab.lib.enums import TA_CENTER
+from constants import HOLIDAY_BG_COLOR, KANOYA_BG_COLOR, KAGOKITA_BG_COLOR,DARK_GREY_TEXT_COLOR, SPECIAL_SHIFT_TYPES
 
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
@@ -22,9 +23,14 @@ def hex_to_rgb(hex_color):
 
 
 def format_shift_for_individual_pdf(shift_type, times, stores):
-    if shift_type in ['-', 'AM', 'PM', '1日', '休み']:
-        return [shift_type]
-    return [f'{time}@{store}' for time, store in zip(times, stores) if time and store]
+    if shift_type in ['-', 'AM', 'PM', '1日']:
+        return [Paragraph(f'<b>{shift_type}</b>', bold_style2)]
+    elif shift_type in SPECIAL_SHIFT_TYPES:
+        bg_color = HOLIDAY_BG_COLOR if shift_type == '休み' else KANOYA_BG_COLOR if shift_type == '鹿屋' else KAGOKITA_BG_COLOR
+        special_style = ParagraphStyle('SpecialShift', parent=bold_style2, textColor=colors.HexColor(DARK_GREY_TEXT_COLOR), backColor=colors.HexColor(bg_color))
+        return [Paragraph(f'<b>{shift_type}</b>', special_style)]
+    return [Paragraph(f'<font color="{STORE_COLORS.get(store, "#000000")}"><b>{time}@{store}</b></font>', bold_style2) 
+            for time, store in zip(times, stores) if time and store]
 
 def generate_pdf(data, employee, year, month):
     buffer = io.BytesIO()
@@ -42,9 +48,13 @@ def generate_pdf(data, employee, year, month):
     normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=8, alignment=1)
 
     def format_shift_for_pdf(shift_type, times, stores):
-        if shift_type in ['-', 'AM', 'PM', '1日', '休み', '鹿屋']:
-            if shift_type in ['休み', '鹿屋']:
+        if shift_type in ['-', 'AM', 'PM', '1日', '休み', '鹿屋', 'かご北']:
+            if shift_type == '休み':
                 return Paragraph(shift_type, ParagraphStyle('Holiday', parent=normal_style, backColor=colors.HexColor(HOLIDAY_BG_COLOR), alignment=1))
+            elif shift_type == '鹿屋':
+                return Paragraph(shift_type, ParagraphStyle('Kanoya', parent=normal_style, backColor=colors.HexColor(KANOYA_BG_COLOR), alignment=1))
+            elif shift_type == 'かご北':
+                return Paragraph(shift_type, ParagraphStyle('Kagokita', parent=normal_style, backColor=colors.HexColor(KAGOKITA_BG_COLOR), alignment=1))
             return shift_type
         
         formatted_parts = []
@@ -153,8 +163,12 @@ def generate_help_table_pdf(data, year, month):
     def format_shift_for_pdf(shift):
         if pd.isna(shift) or shift == '-':
             return '-'
-        if shift in ['休み', '鹿屋']:
+        if shift == '休み':
             return Paragraph(shift, ParagraphStyle('Holiday', parent=normal_style, backColor=colors.HexColor(HOLIDAY_BG_COLOR)))
+        if shift == '鹿屋':
+            return Paragraph(shift, ParagraphStyle('Kanoya', parent=normal_style, backColor=colors.HexColor(KANOYA_BG_COLOR)))
+        if shift == 'かご北':
+            return Paragraph(shift, ParagraphStyle('Kagokita', parent=normal_style, backColor=colors.HexColor(KAGOKITA_BG_COLOR)))
         
         shift_parts = shift.split(',')
         shift_type = shift_parts[0]
@@ -247,10 +261,17 @@ def generate_individual_pdf(data, employee, year, month):
     table_data = [['日付', '曜日'] + [f'シフト{i+1}' for i in range(max_shifts)]]
     
     def format_shift_for_individual_pdf(shift_type, times, stores):
-        if shift_type in ['-', 'AM', 'PM', '1日', '休み', '鹿屋']:
+        if shift_type in ['-', 'AM', 'PM', '1日']:
             return [Paragraph(f'<b>{shift_type}</b>', bold_style2)]
-        return [Paragraph(f'<font color="{STORE_COLORS.get(store, "#000000")}"><b>{time}@{store}</b></font>', bold_style2) for time, store in zip(times, stores) if time and store]
-
+        elif shift_type in SPECIAL_SHIFT_TYPES:
+            bg_color = HOLIDAY_BG_COLOR if shift_type == '休み' else KANOYA_BG_COLOR if shift_type == '鹿屋' else KAGOKITA_BG_COLOR
+            special_style = ParagraphStyle('SpecialShift', 
+                                        parent=bold_style2, 
+                                        textColor=colors.HexColor(DARK_GREY_TEXT_COLOR), 
+                                        backColor=colors.HexColor(bg_color))
+            return [Paragraph(f'<b>{shift_type}</b>', special_style)]
+        return [Paragraph(f'<font color="{STORE_COLORS.get(store, "#000000")}"><b>{time}@{store}</b></font>', bold_style2) 
+                for time, store in zip(times, stores) if time and store]
     for date, shift in filtered_data.items():
         weekday = WEEKDAY_JA[date.strftime('%a')]
         shift_parts = str(shift).split(',') if pd.notna(shift) else ['-']
@@ -283,9 +304,13 @@ def generate_individual_pdf(data, employee, year, month):
             style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR))
 
         for j, cell in enumerate(row[2:], start=2):
-            if isinstance(cell, Paragraph):
-                if '休み' in cell.text or '鹿屋' in cell.text:
+            if isinstance(cell, list) and len(cell) > 0 and isinstance(cell[0], Paragraph):
+                if '休み' in cell[0].text:
                     style.add('BACKGROUND', (j, i), (j, i), colors.HexColor(HOLIDAY_BG_COLOR))
+                elif '鹿屋' in cell[0].text:
+                    style.add('BACKGROUND', (j, i), (j, i), colors.HexColor(KANOYA_BG_COLOR))
+                elif 'かご北' in cell[0].text:
+                    style.add('BACKGROUND', (j, i), (j, i), colors.HexColor(KAGOKITA_BG_COLOR))
 
     t.setStyle(style)
     elements.append(t)

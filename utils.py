@@ -1,14 +1,14 @@
 import pandas as pd
 import streamlit as st
-from constants import  AREAS, SHIFT_TYPES, STORE_COLORS,FILLED_HELP_BG_COLOR,HOLIDAY_BG_COLOR
+from constants import AREAS, SHIFT_TYPES, STORE_COLORS, FILLED_HELP_BG_COLOR, HOLIDAY_BG_COLOR, KANOYA_BG_COLOR, KAGOKITA_BG_COLOR
 
 #シフト文字列を解析し、シフトタイプ、時間、店舗に分割
 def parse_shift(shift_str):
-    if pd.isna(shift_str) or shift_str in ['-', '休み', '鹿屋'] or isinstance(shift_str, (int, float)):
+    if pd.isna(shift_str) or shift_str in ['-', '休み', '鹿屋', 'かご北'] or isinstance(shift_str, (int, float)):
         return shift_str, [], []
     try:
         parts = str(shift_str).split(',')
-        shift_type = parts[0] if parts[0] in ['AM可', 'PM可', '1日可', '休み', '鹿屋'] else ''
+        shift_type = parts[0] if parts[0] in ['AM可', 'PM可', '1日可', '休み', '鹿屋', 'かご北'] else ''
         times_stores = []
         for part in parts[1:]:
             if '@' in part:
@@ -26,8 +26,12 @@ def parse_shift(shift_str):
 def format_shifts(val):
     if pd.isna(val) or val == '-' or isinstance(val, (int, float)):
         return val
-    if val in ['休み', '鹿屋']:
+    if val == '休み':
         return f'<div style="background-color: {HOLIDAY_BG_COLOR};">{val}</div>'
+    if val == '鹿屋':
+        return f'<div style="background-color: {KANOYA_BG_COLOR};">{val}</div>'
+    if val == 'かご北':
+        return f'<div style="background-color: {KAGOKITA_BG_COLOR};">{val}</div>'
     try:
         parts = str(val).split(',')
         shift_type = parts[0]

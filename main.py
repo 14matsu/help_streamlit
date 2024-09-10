@@ -44,7 +44,7 @@ def calculate_shift_count(shift_data):
         if pd.isna(shift) or shift == '-':
             return 0
         shift_type = shift.split(',')[0] if ',' in shift else shift
-        if shift_type in ['1日可', '鹿屋']:
+        if shift_type in ['1日可', '鹿屋', 'かご北']:
             return 1
         elif shift_type in ['AM可', 'PM可']:
             return 0.5
@@ -89,14 +89,14 @@ def display_shift_table(selected_year, selected_month):
     # シフトカウントを計算
     shift_counts = calculate_shift_count(display_data[EMPLOYEES])
 
-    # 以下、ページネーションのコードは変更なし
+    # ページネーションのコード（変更なし）
     items_per_page = 15
     total_pages = len(display_data) // items_per_page + (1 if len(display_data) % items_per_page > 0 else 0)
     
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 1
 
-    # ページナビゲーション
+    # ページナビゲーション（変更なし）
     col1, col2, col3 = st.columns([2,3,2])
     with col1:
         if st.button('◀◀ 最初', key='first_page'):
@@ -116,7 +116,7 @@ def display_shift_table(selected_year, selected_month):
 
     page_display_data = display_data.iloc[start_idx:end_idx]
 
-    # CSSでテーブルのスタイルを調整
+    # CSSでテーブルのスタイルを調整（変更なし）
     st.markdown("""
     <style>
     table {
@@ -156,7 +156,7 @@ def display_shift_table(selected_year, selected_month):
                                              .set_properties(**{'class': 'shift-count'})
     st.write(styled_shift_count.hide(axis="index").to_html(escape=False), unsafe_allow_html=True)
 
-    # PDFダウンロードボタンを追加
+    # PDFダウンロードボタンを追加（変更なし）
     if st.button("ヘルプ表をPDFでダウンロード"):
         pdf = generate_help_table_pdf(display_data, selected_year, selected_month)
         st.download_button(
@@ -168,7 +168,7 @@ def display_shift_table(selected_year, selected_month):
 
 def update_shift_input(current_shift):
     shift_type, times, stores = parse_shift(current_shift)
-    new_shift_type = st.selectbox('種類', ['AM可', 'PM可', '1日可', '-', '休み', '鹿屋'], index=['AM可', 'PM可', '1日可', '-', '休み', '鹿屋'].index(shift_type) if shift_type in ['AM可', 'PM可', '1日可', '休み', '鹿屋'] else 3)
+    new_shift_type = st.selectbox('種類', ['AM可', 'PM可', '1日可', '-', '休み', '鹿屋', 'かご北'], index=['AM可', 'PM可', '1日可', '-', '休み', '鹿屋', 'かご北'].index(shift_type) if shift_type in ['AM可', 'PM可', '1日可', '休み', '鹿屋', 'かご北'] else 3)
     
     if new_shift_type in ['AM可', 'PM可', '1日可']:
         num_shifts = st.number_input('シフト数', min_value=1, max_value=5, value=len(times) or 1)
@@ -199,6 +199,9 @@ def update_shift_input(current_shift):
 
     elif new_shift_type == '鹿屋':
         new_shift_str = '鹿屋'
+
+    elif new_shift_type == 'かご北':
+        new_shift_str = 'かご北'
 
     elif new_shift_type == '-':
         new_shift_str = '-'

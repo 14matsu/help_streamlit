@@ -39,6 +39,19 @@ def initialize_shift_data(year, month):
         st.session_state.current_year = year
         st.session_state.current_month = month
 
+def calculate_shift_count(shift_data):
+    def count_shift(shift):
+        if pd.isna(shift) or shift == '-':
+            return 0
+        shift_type = shift.split(',')[0] if ',' in shift else shift
+        if shift_type in ['1日可', '鹿屋']:
+            return 1
+        elif shift_type in ['AM可', 'PM可']:
+            return 0.5
+        return 0
+
+    return shift_data.applymap(count_shift).sum()
+
 def display_shift_table(selected_year, selected_month):
     st.header('ヘルプ表')
     
@@ -72,6 +85,9 @@ def display_shift_table(selected_year, selected_month):
     
     display_data = display_data[['日付', '曜日'] + EMPLOYEES]
     display_data = display_data.fillna('-')
+
+    # シフトカウントを計算
+    shift_counts = calculate_shift_count(display_data[EMPLOYEES])
 
     # 以下、ページネーションのコードは変更なし
     items_per_page = 15
@@ -116,6 +132,10 @@ def display_shift_table(selected_year, selected_month):
     th {
         background-color: #f0f0f0;
     }
+    .shift-count {
+        font-weight: bold;
+        background-color: #e6f3ff;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -128,6 +148,13 @@ def display_shift_table(selected_year, selected_month):
     
     # インデックスを表示せずにHTMLを生成
     st.write(styled_df.hide(axis="index").to_html(escape=False), unsafe_allow_html=True)
+
+    # シフトカウントを表示
+    st.markdown("### シフト日数")
+    shift_count_df = pd.DataFrame([shift_counts], columns=EMPLOYEES)
+    styled_shift_count = shift_count_df.style.format("{:.1f}")\
+                                             .set_properties(**{'class': 'shift-count'})
+    st.write(styled_shift_count.hide(axis="index").to_html(escape=False), unsafe_allow_html=True)
 
     # PDFダウンロードボタンを追加
     if st.button("ヘルプ表をPDFでダウンロード"):

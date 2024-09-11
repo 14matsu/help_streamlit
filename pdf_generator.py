@@ -15,6 +15,7 @@ from utils import parse_shift  # parse_shift関数をutils.pyからインポー�
 from datetime import datetime
 from reportlab.lib.enums import TA_CENTER
 from constants import HOLIDAY_BG_COLOR, KANOYA_BG_COLOR, KAGOKITA_BG_COLOR,DARK_GREY_TEXT_COLOR, SPECIAL_SHIFT_TYPES
+import jpholiday
 
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
@@ -102,10 +103,11 @@ def generate_pdf(data, employee, year, month):
     ]
     
     for i, row in enumerate(table_data[1:], start=1):
-        if '土' in row[1]:
+        date = pd.to_datetime(filtered_data.index[i-1])
+        if '日' in row[1] or jpholiday.is_holiday(date):
+            base_style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(HOLIDAY_BG_COLOR)))
+        elif '土' in row[1]:
             base_style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(SATURDAY_BG_COLOR)))
-        elif '日' in row[1]:
-            base_style.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR)))
 
     t.setStyle(TableStyle(base_style))
 
@@ -126,111 +128,96 @@ bold_style2 = ParagraphStyle('Bold',
                             fontName='NotoSansJP-Bold')
 
 def generate_help_table_pdf(data, year, month):
-    # フォントの登録
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=10, leftMargin=10, topMargin=20, bottomMargin=20)
+    elements = []
+
     pdfmetrics.registerFont(TTFont('NotoSansJP', 'NotoSansJP-VariableFont_wght.ttf'))
     pdfmetrics.registerFont(TTFont('NotoSansJP-Bold', 'NotoSansJP-Bold.ttf'))
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
-    elements = []
-
-    # スタイルの設定
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='NotoSansJP-Bold', fontSize=16)
-    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=9, alignment=1)
-    bold_style = ParagraphStyle('Bold', parent=normal_style, fontName='NotoSansJP-Bold', textColor=colors.white)  # テキスト色を白に変更
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontName='NotoSansJP-Bold', fontSize=16, textColor=colors.HexColor("#373737"))
+    normal_style = ParagraphStyle('Normal', parent=styles['Normal'], fontName='NotoSansJP', fontSize=7, alignment=1, textColor=colors.HexColor("#373737"))
+    bold_style = ParagraphStyle('Bold', parent=normal_style, fontName='NotoSansJP-Bold', fontSize=7, textColor=colors.white)
+    bold_style2 = ParagraphStyle('Bold2', parent=normal_style, fontName='NotoSansJP-Bold', fontSize=7, textColor=colors.HexColor("#373737"))
 
-
-    # テーブルスタイルのフォントサイズも調整
-    table_style = TableStyle([
-        ('FONT', (0, 0), (-1, -1), 'NotoSansJP', 9),
-        ('FONT', (0, 0), (-1, 0), 'NotoSansJP-Bold', 9),  # ヘッダー行を太字に
-        # 他のスタイル設定は変更なし
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
-    ])
-
-    # タイトル
     title = Paragraph(f"{year}年{month}月 ヘルプ表", title_style)
     elements.append(title)
     elements.append(Spacer(1, 12))
 
     def format_shift_for_pdf(shift):
         if pd.isna(shift) or shift == '-':
-            return '-'
+            return Paragraph('-', normal_style)
         if shift == '休み':
-            return Paragraph(shift, ParagraphStyle('Holiday', parent=normal_style, backColor=colors.HexColor(HOLIDAY_BG_COLOR)))
+            return Paragraph('<b>休み</b>', ParagraphStyle('Holiday', parent=bold_style2, backColor=colors.HexColor(HOLIDAY_BG_COLOR)))
         if shift == '鹿屋':
-            return Paragraph(shift, ParagraphStyle('Kanoya', parent=normal_style, backColor=colors.HexColor(KANOYA_BG_COLOR)))
+            return Paragraph('<b>鹿屋</b>', ParagraphStyle('Kanoya', parent=bold_style2, backColor=colors.HexColor(KANOYA_BG_COLOR)))
         if shift == 'かご北':
-            return Paragraph(shift, ParagraphStyle('Kagokita', parent=normal_style, backColor=colors.HexColor(KAGOKITA_BG_COLOR)))
+            return Paragraph('<b>かご北</b>', ParagraphStyle('Kagokita', parent=bold_style2, backColor=colors.HexColor(KAGOKITA_BG_COLOR)))
         
         shift_parts = shift.split(',')
         shift_type = shift_parts[0]
         formatted_parts = []
 
-         # シフトタイプの色を設定
-        shift_type_color = "#595959" if shift_type in ['AM可', 'PM可', '1日可'] else "#000000"
+        shift_type_color = "#595959" if shift_type in ['AM可', 'PM可', '1日可'] else "#373737"
+        formatted_parts.append(Paragraph(f'<font color="{shift_type_color}"><b>{shift_type}</b></font>', bold_style2))
         
         for part in shift_parts[1:]:
             if '@' in part:
                 time, store = part.split('@')
-                color = STORE_COLORS.get(store, "#000000")
-                # 時間は通常のスタイル、店舗名は太字かつ指定色で表示
+                color = STORE_COLORS.get(store, "#373737")
                 formatted_parts.append(Paragraph(f'<font color="{color}"><b>{time}@{store}</b></font>', bold_style2))
             else:
-                formatted_parts.append(Paragraph(part, normal_style))
+                formatted_parts.append(Paragraph(f'<b>{part}</b>', bold_style2))
         
-        if shift_type in ['AM可', 'PM可', '1日可']:
-             content = [Paragraph(f'<font color="{shift_type_color}"><b>{shift_type}</b></font>', bold_style2)] + formatted_parts
-        else:
-            content = formatted_parts
-        
-        return content
+        return formatted_parts
 
-    # データの準備
-    table_data = [['日付', '曜日'] + [Paragraph(f'<font color="white">{emp}</font>', bold_style) for emp in EMPLOYEES]]  # スタッフ名を白色に
+    bold_style_header = ParagraphStyle('BoldHeader', parent=bold_style, fontSize=8, textColor=colors.white)
 
-    for _, row in data.iterrows():
-        date = row['日付']
-        weekday = row['曜日']
+    table_data = [
+        [
+            Paragraph(f'<b>日付</b>', bold_style_header),
+            Paragraph(f'<b>曜日</b>', bold_style_header)
+        ] + [Paragraph(f'<font color="white"><b>{emp}</b></font>', bold_style) for emp in EMPLOYEES]
+    ]
+    for date, row in data.iterrows():
+        weekday = WEEKDAY_JA.get(date.strftime('%a'), date.strftime('%a'))
+        date_str = date.strftime('%Y-%m-%d')
         employee_shifts = [format_shift_for_pdf(row[emp]) for emp in EMPLOYEES]
-        table_data.append([date, weekday] + employee_shifts)
+        table_data.append([Paragraph(f'<b>{date_str}</b>', bold_style2), Paragraph(f'<b>{weekday}</b>', bold_style2)] + employee_shifts)
 
-    # テーブルの作成
-    table = Table(table_data, repeatRows=1)
+    col_widths = [50, 20] + [72] * len(EMPLOYEES)
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    
     table_style = TableStyle([
-        ('FONT', (0, 0), (-1, -1), 'NotoSansJP', 8),
-        ('FONT', (0, 0), (-1, 0), 'NotoSansJP-Bold', 8),  # ヘッダー行を太字に
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, -1), 'NotoSansJP-Bold'),  # ヘッダー行を太字に
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('LEFTPADDING', (0, 0), (-1, -1), 2),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 1),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 1),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor("#373737")),
     ])
 
-    # 土曜日と日曜日の背景色を設定
-    for i, row in enumerate(table_data[1:], start=1):
-        if row[1] == '土':
+    for i, (date, row) in enumerate(data.iterrows(), start=1):
+        if date.strftime('%a') == 'Sun' or jpholiday.is_holiday(date):
+            table_style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(HOLIDAY_BG_COLOR))
+        elif date.strftime('%a') == 'Sat':
             table_style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SATURDAY_BG_COLOR))
-        elif row[1] == '日':
-            table_style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR))
 
     table.setStyle(table_style)
     elements.append(table)
 
-    # PDFの生成
     doc.build(elements)
-
     buffer.seek(0)
     return buffer
+
 
 def generate_individual_pdf(data, employee, year, month):
     buffer = BytesIO()
@@ -298,10 +285,11 @@ def generate_individual_pdf(data, employee, year, month):
     ])
 
     for i, row in enumerate(table_data[1:], start=1):
-        if '土' in row[1]:
+        date = pd.to_datetime(filtered_data.index[i-1])
+        if '日' in row[1] or jpholiday.is_holiday(date):
+            style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(HOLIDAY_BG_COLOR))
+        elif '土' in row[1]:
             style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SATURDAY_BG_COLOR))
-        elif '日' in row[1]:
-            style.add('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR))
 
         for j, cell in enumerate(row[2:], start=2):
             if isinstance(cell, list) and len(cell) > 0 and isinstance(cell[0], Paragraph):
@@ -336,6 +324,10 @@ def generate_store_pdf(store_data, store_name, year, month):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
     elements = []
+
+    # フォントの登録
+    pdfmetrics.registerFont(TTFont('NotoSansJP', 'NotoSansJP-VariableFont_wght.ttf'))
+    pdfmetrics.registerFont(TTFont('NotoSansJP-Bold', 'NotoSansJP-Bold.ttf'))
 
     # スタイルの設定
     styles = getSampleStyleSheet()
@@ -384,13 +376,13 @@ def generate_store_pdf(store_data, store_name, year, month):
             time_paragraph = Paragraph('<b>-</b>', bold_style)
             helper_paragraph = Paragraph('<b>-</b>', bold_style)
         
-        data.append([Paragraph(f'<b>{date_str}</b>', bold_style), time_paragraph, helper_paragraph, ''])
+        data.append([Paragraph(f'<b>{date_str}</b>', normal_style), time_paragraph, helper_paragraph, ''])
 
         # 土曜日と日曜日の背景色を設定
-        if day_of_week == '土':
+        if day_of_week == '日' or jpholiday.is_holiday(date):
+            row_colors.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(HOLIDAY_BG_COLOR)))
+        elif day_of_week == '土':
             row_colors.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(SATURDAY_BG_COLOR)))
-        elif day_of_week == '日':
-            row_colors.append(('BACKGROUND', (0, i), (-1, i), colors.HexColor(SUNDAY_BG_COLOR)))
 
     # テーブルの作成
     table = Table(data, colWidths=[80, 80, 80, 80])

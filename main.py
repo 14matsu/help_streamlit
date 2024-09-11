@@ -7,8 +7,7 @@ import asyncio
 from database import init_db, get_shifts, save_shift, save_store_help_request, get_store_help_requests
 from pdf_generator import generate_pdf,generate_help_table_pdf,generate_individual_pdf,generate_store_pdf
 from constants import EMPLOYEES, SHIFT_TYPES, STORE_COLORS, WEEKDAY_JA,AREAS
-from utils import parse_shift, format_shifts, update_session_state_shifts, highlight_weekend, get_store_index, get_shift_type_index, is_shift_filled, highlight_filled_shifts
-
+from utils import parse_shift, format_shifts, update_session_state_shifts, highlight_weekend_and_holiday, highlight_filled_shifts
 @st.cache_data(ttl=3600)
 def get_cached_shifts(year, month):
     start_date = pd.Timestamp(year, month, 16)
@@ -144,7 +143,7 @@ def display_shift_table(selected_year, selected_month):
 
     # スタイリングを適用
     styled_df = page_display_data.style.format(format_shifts, subset=EMPLOYEES)\
-                               .apply(highlight_weekend, axis=1)
+                                .apply(highlight_weekend_and_holiday, axis=1)
     
     # インデックスを表示せずにHTMLを生成
     st.write(styled_df.hide(axis="index").to_html(escape=False), unsafe_allow_html=True)
@@ -267,8 +266,8 @@ def display_store_help_requests(selected_year, selected_month):
                 shift_data.index = pd.to_datetime(shift_data.index)
 
                 # スタイリングを適用
-                styled_df = area_data.style.apply(highlight_weekend, axis=1)\
-                                           .apply(highlight_filled_shifts, shift_data=shift_data, axis=1)
+                styled_df = area_data.style.apply(highlight_weekend_and_holiday, axis=1)\
+                                        .apply(highlight_filled_shifts, shift_data=shift_data, axis=1)
 
                 st.write(styled_df.to_html(escape=False, index=False), unsafe_allow_html=True)
 

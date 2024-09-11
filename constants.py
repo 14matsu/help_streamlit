@@ -30,7 +30,7 @@ STORE_COLORS = {
     
     # 北エリア
     'ピッコロ': '#70AD47',
-    '加治木店': '#264478',
+    '加治木店': '#D0A900',
     '霧島店': '#9E480E',
     
     # 南薩エリア
@@ -51,7 +51,7 @@ FILLED_HELP_BG_COLOR = 'background-color: #D9D9D9'
 SATURDAY_BG_COLOR = '#E6F2FF'  # 薄い青色
 SUNDAY_BG_COLOR = '#FFE6E6'    # 薄い赤色
 HOLIDAY_BG_COLOR = '#FFE6E6'  # 休み用の背景色
-KANOYA_BG_COLOR = "#EEF9FF"   # 鹿屋用の背景色（薄い赤）
-KAGOKITA_BG_COLOR = "#EEF9FF" # かご北用の背景色（薄い青）
+KANOYA_BG_COLOR = "#C0FF80"   # 鹿屋用の背景色
+KAGOKITA_BG_COLOR = "#C0FF80" # かご北用の背景色
 DARK_GREY_TEXT_COLOR = "#666666"
 SPECIAL_SHIFT_TYPES = ['休み', '鹿屋', 'かご北']

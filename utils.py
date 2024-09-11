@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
-from constants import AREAS, SHIFT_TYPES, STORE_COLORS, FILLED_HELP_BG_COLOR, HOLIDAY_BG_COLOR, KANOYA_BG_COLOR, KAGOKITA_BG_COLOR
+import jpholiday
+from constants import AREAS, SHIFT_TYPES, STORE_COLORS, FILLED_HELP_BG_COLOR, SATURDAY_BG_COLOR,HOLIDAY_BG_COLOR, KANOYA_BG_COLOR, KAGOKITA_BG_COLOR
 
 #シフト文字列を解析し、シフトタイプ、時間、店舗に分割
 def parse_shift(shift_str):
@@ -67,13 +68,18 @@ def update_session_state_shifts(shifts):
                     st.session_state.shift_data.loc[date, employee] = '-'
 
 #土曜日と日曜日の行に背景色を適用
-def highlight_weekend(row):
+def is_holiday(date):
+    return jpholiday.is_holiday(date)
+
+def highlight_weekend_and_holiday(row):
     weekday = row['曜日']
-    if weekday == '土':
-        return ['background-color: #EEF9FF'] * len(row)
-    elif weekday == '日':
-        return ['background-color: #FFE9E9'] * len(row)
+    date = pd.to_datetime(row['日付'])
+    if weekday == '日' or is_holiday(date):
+        return ['background-color: ' + HOLIDAY_BG_COLOR] * len(row)
+    elif weekday == '土':
+        return ['background-color: ' + SATURDAY_BG_COLOR] * len(row)
     return [''] * len(row)
+
 
 def get_store_index(store):
     all_stores = [s for stores in AREAS.values() for s in stores]

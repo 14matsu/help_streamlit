@@ -5,7 +5,7 @@ import io
 import base64
 import asyncio
 from database import init_db, get_shifts, save_shift, save_store_help_request, get_store_help_requests
-from pdf_generator import generate_pdf,generate_help_table_pdf,generate_individual_pdf,generate_store_pdf
+from pdf_generator import generate_help_table_pdf,generate_individual_pdf,generate_store_pdf
 from constants import EMPLOYEES, SHIFT_TYPES, STORE_COLORS, WEEKDAY_JA,AREAS
 from utils import parse_shift, format_shifts, update_session_state_shifts, highlight_weekend_and_holiday, highlight_filled_shifts
 @st.cache_data(ttl=3600)

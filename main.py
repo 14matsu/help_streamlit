@@ -165,8 +165,22 @@ def display_shift_table(selected_year, selected_month):
             mime="application/pdf"
         )
 
-def update_shift_input(current_shift):
-    shift_type, times, stores = parse_shift(current_shift)
+def initialize_session_state():
+    if 'editing_shift' not in st.session_state:
+        st.session_state.editing_shift = False
+    if 'current_shift' not in st.session_state:
+        st.session_state.current_shift = None
+
+
+def update_shift_input(current_shift, employee, date):
+    initialize_session_state()
+    
+    if not st.session_state.editing_shift:
+        st.session_state.current_shift = current_shift
+        st.session_state.editing_shift = True
+    
+    shift_type, times, stores = parse_shift(st.session_state.current_shift)
+    
     new_shift_type = st.selectbox('種類', ['AM可', 'PM可', '1日可', '-', '休み', '鹿屋', 'かご北'], index=['AM可', 'PM可', '1日可', '-', '休み', '鹿屋', 'かご北'].index(shift_type) if shift_type in ['AM可', 'PM可', '1日可', '休み', '鹿屋', 'かご北'] else 3)
     
     if new_shift_type in ['AM可', 'PM可', '1日可']:
@@ -177,13 +191,21 @@ def update_shift_input(current_shift):
         for i in range(num_shifts):
             col1, col2, col3 = st.columns(3)
             with col1:
-                area = st.selectbox(f'エリア {i+1}', list(AREAS.keys()), key=f'shift_area_{i}')
+                # エリアの選択肢を準備
+                area_options = list(AREAS.keys())
+                # 既存のエリアがある場合はそれを選択、なければ最初の選択肢
+                current_area = next((area for area, stores_list in AREAS.items() if stores[i] in stores_list), area_options[0]) if i < len(stores) else area_options[0]
+                area = st.selectbox(f'エリア {i+1}', area_options, index=area_options.index(current_area), key=f'shift_area_{i}')
                 
             with col2:
                 store_options = [''] + AREAS[area] if area != 'なし' else ['']
-                store = st.selectbox(f'店舗 {i+1}', store_options, index=store_options.index(stores[i]) if i < len(stores) and stores[i] in store_options else 0, key=f'shift_store_{i}')
+                # 既存の店舗がある場合はそれを選択、なければ空白
+                current_store = stores[i] if i < len(stores) and stores[i] in store_options else ''
+                store = st.selectbox(f'店舗 {i+1}', store_options, index=store_options.index(current_store), key=f'shift_store_{i}')
+            
             with col3:
                 time = st.text_input(f'時間 {i+1}', value=times[i] if i < len(times) else '')
+            
             if time:
                 new_times.append(time)
                 new_stores.append(store)
@@ -205,8 +227,8 @@ def update_shift_input(current_shift):
     elif new_shift_type == '-':
         new_shift_str = '-'
     
+    st.session_state.current_shift = new_shift_str
     return new_shift_str
-
 def display_store_help_requests(selected_year, selected_month):
     st.header('店舗ヘルプ希望')
     
@@ -339,11 +361,20 @@ async def main():
         else:
             current_shift = '休み'
         
-        new_shift_str = update_shift_input(current_shift)
+        # 従業員または日付が変更されたらediting_shiftをリセット
+        if 'last_employee' not in st.session_state or 'last_date' not in st.session_state or \
+           st.session_state.last_employee != employee or st.session_state.last_date != date:
+            st.session_state.editing_shift = False
+        
+        st.session_state.last_employee = employee
+        st.session_state.last_date = date
+        
+        new_shift_str = update_shift_input(current_shift, employee, date)
 
         if st.button('保存'):
             await save_shift_async(date, employee, new_shift_str)
             st.session_state.shift_data.loc[date, employee] = new_shift_str
+            st.session_state.editing_shift = False
             st.success('保存しました')
             st.experimental_rerun()
 

@@ -42,7 +42,7 @@ bold_style = ParagraphStyle('Bold',
 bold_style2 = ParagraphStyle('Bold2', 
                              parent=normal_style, 
                              fontName='NotoSansJP-Bold', 
-                             fontSize=8, 
+                             fontSize=7, 
                              textColor=colors.HexColor("#595959"))
 
 header_style = ParagraphStyle('Header', 
@@ -88,19 +88,19 @@ def generate_help_table_pdf(data, year, month):
     normal_style = ParagraphStyle('Normal', 
                                   parent=styles['Normal'], 
                                   fontName='NotoSansJP', 
-                                  fontSize=7, 
+                                  fontSize=7,  # フォントサイズを小さくする
                                   alignment=TA_CENTER, 
                                   textColor=colors.HexColor("#373737"))
 
     bold_style = ParagraphStyle('Bold', 
                                 parent=normal_style, 
                                 fontName='NotoSansJP-Bold', 
-                                fontSize=8, 
+                                fontSize=7,  # フォントサイズを小さくする
                                 textColor=colors.HexColor("#373737"))
 
     header_style = ParagraphStyle('Header', 
                                   parent=bold_style, 
-                                  fontSize=10,  # スタッフ名のフォントサイズを大きくする
+                                  fontSize=8,  # ヘッダーのフォントサイズも少し小さくする
                                   textColor=colors.white)
 
     start_date = pd.Timestamp(year, month, 16)
@@ -135,8 +135,8 @@ def generate_help_table_pdf(data, year, month):
             employee_shifts = [format_shift_for_pdf(row[emp]) for emp in EMPLOYEES]
             table_data.append([Paragraph(f'<b>{date_str}</b>', bold_style), Paragraph(f'<b>{weekday}</b>', bold_style)] + employee_shifts)
 
-        col_widths = [60, 20] + [75] * len(EMPLOYEES)
-        table = Table(table_data, colWidths=col_widths, rowHeights=[10*mm] + [12*mm] * (len(table_data) - 1), repeatRows=1)
+        col_widths = [50, 40] + [78] * len(EMPLOYEES)  # 各列の幅を調整
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
         
         table_style = TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -144,13 +144,13 @@ def generate_help_table_pdf(data, year, month):
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, -1), 'NotoSansJP-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),  # ヘッダー行のフォントサイズを大きくする
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),  # ヘッダー行のフォントサイズを小さくする
+            ('FONTSIZE', (0, 1), (-1, -1), 6),  # 内容のフォントサイズを小さくする
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
             ('LEFTPADDING', (0, 0), (-1, -1), 1),
             ('RIGHTPADDING', (0, 0), (-1, -1), 1),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 1),  # 上下のパディングを減らす
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
             ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor("#373737")),
         ])
 
@@ -166,6 +166,7 @@ def generate_help_table_pdf(data, year, month):
     doc.build(elements)
     buffer.seek(0)
     return buffer
+
 
 def format_shift_for_pdf(shift):
     if pd.isna(shift) or shift == '-':
@@ -386,7 +387,7 @@ def generate_store_pdf(store_data, store_name, year, month):
 
     buffer.seek(0)
     return buffer
-
+#streamlit run main.py
 # メイン実行部分（必要に応じて）
 if __name__ == "__main__":
     # ここにメインの実行コードを記述

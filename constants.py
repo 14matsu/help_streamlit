@@ -8,7 +8,7 @@ AREAS = {
     '南薩エリア': ['チェリー','ひかり','屋久島店','南さつま店'],
     '宮崎エリア': ['東町店','早鈴店','三股店','とだか','さくら']
 }
-SHIFT_TYPES = ['AM可', 'PM可', '1日可', '時間指定', '-', '休み', '鹿屋', 'かご北']
+SHIFT_TYPES = ['AM可', 'PM可', '1日可', '時間指定', '-', '休み', '鹿屋', 'かご北', 'リクルート']
 STORE_COLORS = {
     # 中央エリア
     '本店': '#0070C2', 
@@ -53,5 +53,6 @@ SUNDAY_BG_COLOR = '#FFE6E6'    # 薄い赤色
 HOLIDAY_BG_COLOR = '#FFE6E6'  # 休み用の背景色
 KANOYA_BG_COLOR = "#C0FF80"   # 鹿屋用の背景色
 KAGOKITA_BG_COLOR = "#C0FF80" # かご北用の背景色
+RECRUIT_BG_COLOR = "#c2a5ff" # かご北用の背景色
 DARK_GREY_TEXT_COLOR = "#666666"
-SPECIAL_SHIFT_TYPES = ['休み', '鹿屋', 'かご北']
+SPECIAL_SHIFT_TYPES = ['休み', '鹿屋', 'かご北','リクルート']

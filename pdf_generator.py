@@ -14,7 +14,7 @@ from io import BytesIO
 from utils import parse_shift  # parse_shift関数をutils.pyからインポート
 from datetime import datetime
 from reportlab.lib.enums import TA_CENTER
-from constants import HOLIDAY_BG_COLOR, KANOYA_BG_COLOR, KAGOKITA_BG_COLOR, DARK_GREY_TEXT_COLOR, SPECIAL_SHIFT_TYPES
+from constants import HOLIDAY_BG_COLOR, KANOYA_BG_COLOR, KAGOKITA_BG_COLOR, DARK_GREY_TEXT_COLOR, SPECIAL_SHIFT_TYPES,RECRUIT_BG_COLOR
 import jpholiday
 
 # グローバルスコープでスタイルを定義
@@ -62,7 +62,12 @@ def format_shift_for_individual_pdf(shift_type, times, stores):
     if shift_type in ['-', 'AM', 'PM', '1日']:
         return [Paragraph(f'<b>{shift_type}</b>', bold_style2)]
     elif shift_type in SPECIAL_SHIFT_TYPES:
-        bg_color = HOLIDAY_BG_COLOR if shift_type == '休み' else KANOYA_BG_COLOR if shift_type == '鹿屋' else KAGOKITA_BG_COLOR
+        # 各特別シフトタイプに対応する背景色を設定
+        bg_color = (HOLIDAY_BG_COLOR if shift_type == '休み' 
+                   else KANOYA_BG_COLOR if shift_type == '鹿屋' 
+                   else KAGOKITA_BG_COLOR if shift_type == 'かご北'
+                   else RECRUIT_BG_COLOR if shift_type == 'リクルート'
+                   else None)
         special_style = ParagraphStyle('SpecialShift', parent=bold_style2, textColor=colors.HexColor(DARK_GREY_TEXT_COLOR), backColor=colors.HexColor(bg_color))
         return [Paragraph(f'<b>{shift_type}</b>', special_style)]
     return [Paragraph(f'<font color="{STORE_COLORS.get(store, "#000000")}"><b>{time}@{store}</b></font>', bold_style2) 
@@ -187,7 +192,11 @@ def format_shift_for_pdf(shift):
                                                         parent=bold_style, 
                                                         textColor=colors.HexColor("#373737"),
                                                         backColor=colors.HexColor(KAGOKITA_BG_COLOR)))
-    
+    if shift == 'リクルート':
+        return Paragraph('<b>リクルート</b>', ParagraphStyle('Recruit', 
+                                                        parent=bold_style, 
+                                                        textColor=colors.HexColor("#373737"),
+                                                        backColor=colors.HexColor(RECRUIT_BG_COLOR)))
     shift_parts = shift.split(',')
     shift_type = shift_parts[0]
     formatted_parts = []
@@ -267,6 +276,8 @@ def generate_individual_pdf(data, employee, year, month):
                     style.add('BACKGROUND', (j, i), (j, i), colors.HexColor(KANOYA_BG_COLOR))
                 elif 'かご北' in cell[0].text:
                     style.add('BACKGROUND', (j, i), (j, i), colors.HexColor(KAGOKITA_BG_COLOR))
+                elif 'リクルート' in cell[0].text:
+                    style.add('BACKGROUND', (j, i), (j, i), colors.HexColor(RECRUIT_BG_COLOR))
 
     t.setStyle(style)
     elements.append(t)
